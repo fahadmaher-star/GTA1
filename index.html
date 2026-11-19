@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Camry 2025 Real</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;touch-action:none;user-select:none}
+  body{overflow:hidden;background:#000;font-family:Arial}
+  #game{width:100vw;height:100vh;display:block}
+  #hud{position:fixed;top:8px;right:8px;z-index:10;pointer-events:none}
+  #speedBox{background:rgba(0,0,0,.6);color:#fff;padding:4px 10px;border-radius:10px;font-size:13px;font-weight:bold}
+  #speed{color:#ffd700;font-size:18px}
+  #exitBtn{position:fixed;top:8px;left:50%;transform:translateX(-50%);z-index:15;height:32px;padding:0 12px;border-radius:16px;border:1px solid #fff;background:#ff9800;color:#fff;font-size:13px;font-weight:bold}
+  #carControls{position:fixed;bottom:12px;left:0;right:0;display:flex;justify-content:space-between;padding:0 12px;z-index:10;align-items:flex-end;direction:ltr}
+  #carControls .left,#carControls .right{display:flex;gap:10px;direction:ltr}
+  #leftBtn,#rightBtn{width:85px;height:85px;border-radius:50%;border:2px solid #fff;background:rgba(255,255,255,.25);color:#fff;font-size:34px;font-weight:bold}
+  #gas,#brake{width:70px;height:70px;border-radius:50%;border:2px solid #fff;color:#fff;font-size:26px;font-weight:bold}
+  #gas{background:rgba(0,200,80,.6)} #brake{background:rgba(255,40,40,.6)}
+  #joyBase{position:fixed;width:130px;height:130px;border-radius:50%;background:rgba(255,255,255,.15);border:2px solid rgba(255,255,255,.7);display:none;z-index:10;pointer-events:none}
+  #joyKnob{position:absolute;top:40px;left:40px;width:50px;height:50px;border-radius:50%;background:#ffd700;border:2px solid #fff}
+  #runBtn{position:fixed;bottom:30px;right:20px;width:80px;height:80px;border-radius:50%;background:rgba(0,200,80,.6);border:2px solid #fff;color:#fff;font-size:18px;display:none;z-index:10}
+  #msg{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.85);color:#fff;padding:16px 22px;border-radius:14px;text-align:center;z-index:20}
+  #toast{position:fixed;top:50px;left:50%;transform:translateX(-50%) translateY(-20px);background:rgba(0,0,0,.85);color:#fff;padding:10px 18px;border-radius:20px;font-size:14px;font-weight:bold;z-index:30;opacity:0;pointer-events:none;transition:all .3s}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  #loading{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.8);color:#fff;padding:12px 20px;border-radius:12px;z-index:25;display:none}
+  @media (orientation: landscape){
+    #leftBtn,#rightBtn{width:75px;height:75px;font-size:30px}
+    #gas,#brake{width:60px;height:60px}
+  }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="hud"><div id="speedBox"><span id="speed">0</span> KM</div></div>
+<button id="exitBtn">🚶 خروج</button>
+<div id="carControls">
+  <div class="left"><button id="leftBtn">&#9664;</button><button id="rightBtn">&#9654;</button></div>
+  <div class="right"><button id="brake">■</button><button id="gas">▲</button></div>
+</div>
+<div id="joyBase"><div id="joyKnob"></div></div>
+<button id="runBtn">🏃</button>
+<div id="msg">اضغط للبدء - كامري 2025 حقيقية</div>
+<div id="toast">قرب من السيارة!</div>
+<div id="loading">جاري تحميل الكامري...</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script>
+function lockLandscape(){
+  try{ if(document.documentElement.requestFullscreen && !document.fullscreenElement){ document.documentElement.requestFullscreen().catch(()=>{}); } }catch(e){}
+  try{ if(screen.orientation && screen.orientation.lock){ screen.orientation.lock('landscape').catch(()=>{}); } }catch(e){}
+  setTimeout(()=>{ try{ screen.orientation.lock('landscape').catch(()=>{}); }catch(e){} },500);
+}
+document.getElementById('msg').addEventListener('click',e=>{ e.currentTarget.style.display='none'; lockLandscape(); });
+document.addEventListener('touchstart',()=>{ lockLandscape(); },{once:true});
+let toastTimer=null;
+function showToast(text){
+  let t=document.getElementById('toast');
+  t.innerText=text; t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>{ t.classList.remove('show'); },1800);
+}
+let scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87ceeb);
+scene.fog = new THREE.Fog(0x87ceeb, 60, 300);
+let camera = new THREE.PerspectiveCamera(62, innerWidth/innerHeight, 0.1, 800);
+let renderer = new THREE.WebGLRenderer({canvas:document.getElementById('game'), antialias:true});
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+let sun = new THREE.DirectionalLight(0xffffff, 1.1);
+sun.position.set(50,80,30); sun.castShadow=true; scene.add(sun);
+scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+let ground = new THREE.Mesh(new THREE.PlaneGeometry(800,800), new THREE.MeshLambertMaterial({color:0x2e7d32}));
+ground.rotation.x=-Math.PI/2; ground.receiveShadow=true; scene.add(ground);
+function road(w,l,x,z){
+  let r=new THREE.Mesh(new THREE.PlaneGeometry(w,l), new THREE.MeshLambertMaterial({color:0x222222}));
+  r.rotation.x=-Math.PI/2; r.position.set(x,0.05,z); r.receiveShadow=true; scene.add(r);
+  let line=new THREE.Mesh(new THREE.PlaneGeometry(0.4,l), new THREE.MeshBasicMaterial({color:0xffd700}));
+  line.rotation.x=-Math.PI/2; line.position.set(x,0.1,z); scene.add(line);
+}
+for(let i=-200;i<=200;i+=40){ road(10,800,i,0); road(800,10,0,i); }
+let buildings=[];
+let colors=[0xff6b6b,0x4ecdc4,0xffe66d,0x95a5a6,0x3498db,0x9b59b6,0xe67e22,0x1abc9c];
+for(let x=-180;x<=180;x+=40){
+  for(let z=-180;z<=180;z+=40){
+    if(Math.abs(x)<10 && Math.abs(z)<10) continue;
+    let h=8+Math.random()*25;
+    let b=new THREE.Mesh(new THREE.BoxGeometry(16,h,16), new THREE.MeshLambertMaterial({color:colors[Math.floor(Math.random()*colors.length)]}));
+    b.position.set(x,h/2,z); b.castShadow=true; scene.add(b); buildings.push({x:x,z:z,half:8});
+    for(let wy=3;wy<h;wy+=4){
+      for(let wx=-6;wx<=6;wx+=4){
+        let win=new THREE.Mesh(new THREE.PlaneGeometry(2,2), new THREE.MeshBasicMaterial({color:0xfff9a0}));
+        win.position.set(x+wx,wy,z+8.2); scene.add(win);
+      }
+    }
+  }
+}
+let trees=[];
+for(let i=0;i<100;i++){
+  let trunk=new THREE.Mesh(new THREE.CylinderGeometry(0.3,0.3,1.5), new THREE.MeshLambertMaterial({color:0x8b4513}));
+  let leaf=new THREE.Mesh(new THREE.SphereGeometry(1.2,8,8), new THREE.MeshLambertMaterial({color:0x228b22}));
+  let bx = -180 + Math.floor(Math.random()*10)*40;
+  let bz = -180 + Math.floor(Math.random()*10)*40;
+  let x = bx + (Math.random()>0.5?12:-12), z = bz + (Math.random()>0.5?12:-12);
+  trunk.position.set(x,0.75,z); leaf.position.set(x,2.2,z);
+  leaf.castShadow=true; scene.add(trunk,leaf);
+  trees.push({x:x,z:z,r:1.2});
+}
+
+// ===== السيارة - نحمل الملف الحقيقي =====
+let car=new THREE.Group();
+scene.add(car); car.position.set(0,0,30);
+let camryLoaded=false;
+let brakeMat = new THREE.MeshBasicMaterial({color:0x1a1a1a});
+// لمبات الفرامل - نحطها فوق الموديل الحقيقي، عشان تشتغل صح
+let tailBar = new THREE.Mesh(new THREE.BoxGeometry(1.85,0.16,0.06), brakeMat);
+tailBar.position.set(0,0.92,-2.46); car.add(tailBar);
+let wheels=[];
+[[-1.0,1.55],[1.0,1.55],[-1.0,-1.55],[1.0,-1.55]].forEach(p=>{
+  let w=new THREE.Mesh(new THREE.CylinderGeometry(0.42,0.42,0.05,20), new THREE.MeshLambertMaterial({color:0x111111}));
+  w.rotation.z=Math.PI/2; w.position.set(p[0],0.42,p[1]); w.visible=false; car.add(w); wheels.push(w);
+});
+
+document.getElementById('loading').style.display='block';
+let loader = new THREE.GLTFLoader();
+// الملف لازم يكون جنب ملف اللعبة بنفس المجلد، بنفس الاسم
+loader.load('camry2025.glb',
+  function(gltf){
+    let model = gltf.scene;
+    // نضبط الحجم: نحسب حجم الموديل ونخليه طوله 4.9 متر زي الكامري الحقيقية
+    let box = new THREE.Box3().setFromObject(model);
+    let size = new THREE.Vector3(); box.getSize(size);
+    let center = new THREE.Vector3(); box.getCenter(center);
+    let maxDim = Math.max(size.x, size.y, size.z);
+    let scale = 4.9 / Math.max(size.z, size.x); // طول السيارة
+    if(size.z < size.x) scale = 4.9 / size.x;
+    model.scale.set(scale, scale, scale);
+    // ننزل الموديل عشان الكفرات تلمس الارض
+    model.position.y = -center.y*scale + 0.05;
+    model.position.x = -center.x*scale;
+    model.position.z = -center.z*scale;
+    // جرب تدويرها اذا طلعت بالعكس
+    // اذا طلعت الكامري ماشية بالريوس، غير هذي من 0 الى Math.PI
+    model.rotation.y = 0;
+    model.traverse(o=>{ if(o.isMesh){ o.castShadow=true; } });
+    car.add(model);
+    camryLoaded=true;
+    document.getElementById('loading').style.display='none';
+    showToast('تم تحميل الكامري الحقيقية!');
+  },
+  function(xhr){
+    if(xhr.total>0){
+      let p = Math.round(xhr.loaded/xhr.total*100);
+      document.getElementById('loading').innerText = 'جاري تحميل الكامري... '+p+'%';
+    }
+  },
+  function(err){
+    document.getElementById('loading').innerText = 'ما لقيت ملف camry2025.glb - حطه جنب اللعبة';
+    console.log(err);
+    // اذا ما لقى الملف، نرجع لسيارة بديلة مربعة عشان اللعبة ما توقف
+    let fallback = new THREE.Mesh(new THREE.BoxGeometry(2,0.7,4.9), new THREE.MeshLambertMaterial({color:0x111111}));
+    fallback.position.y=0.6; car.add(fallback);
+  }
+);
+
+let human=new THREE.Group();
+let hBody=new THREE.Mesh(new THREE.BoxGeometry(0.8,1.1,0.45), new THREE.MeshLambertMaterial({color:0x2196f3}));
+hBody.position.y=1.1; hBody.castShadow=true; human.add(hBody);
+let shirtBtn=new THREE.Mesh(new THREE.BoxGeometry(0.12,0.12,0.05), new THREE.MeshBasicMaterial({color:0xffffff}));
+shirtBtn.position.set(0,1.3,0.25); human.add(shirtBtn);
+let shirtBtn2=shirtBtn.clone(); shirtBtn2.position.y=1.0; human.add(shirtBtn2);
+let hHead=new THREE.Mesh(new THREE.SphereGeometry(0.4,12,12), new THREE.MeshLambertMaterial({color:0xffcc99}));
+hHead.position.y=2.0; human.add(hHead);
+let hHair=new THREE.Mesh(new THREE.SphereGeometry(0.42,12,12,0,Math.PI*2,0,1.5), new THREE.MeshLambertMaterial({color:0x222222}));
+hHair.position.y=2.05; hHair.position.z=-0.05; human.add(hHair);
+let eyeWhiteMat=new THREE.MeshBasicMaterial({color:0xffffff});
+let eyeBlackMat=new THREE.MeshBasicMaterial({color:0x000000});
+[-0.14,0.14].forEach(x=>{
+  let white=new THREE.Mesh(new THREE.SphereGeometry(0.09,8,8), eyeWhiteMat);
+  white.position.set(x,2.05,0.33); white.scale.z=0.4; human.add(white);
+  let black=new THREE.Mesh(new THREE.SphereGeometry(0.045,8,8), eyeBlackMat);
+  black.position.set(x,2.05,0.38); human.add(black);
+  let brow=new THREE.Mesh(new THREE.BoxGeometry(0.14,0.04,0.02), new THREE.MeshBasicMaterial({color:0x222222}));
+  brow.position.set(x,2.22,0.36); human.add(brow);
+});
+let nose=new THREE.Mesh(new THREE.SphereGeometry(0.05,8,8), new THREE.MeshLambertMaterial({color:0xe6a87a}));
+nose.position.set(0,1.92,0.4); human.add(nose);
+let mouth=new THREE.Mesh(new THREE.BoxGeometry(0.18,0.04,0.02), new THREE.MeshBasicMaterial({color:0x8b0000}));
+mouth.position.set(0,1.78,0.38); human.add(mouth);
+[-0.4,0.4].forEach(x=>{
+  let ear=new THREE.Mesh(new THREE.SphereGeometry(0.08,8,8), new THREE.MeshLambertMaterial({color:0xffcc99}));
+  ear.position.set(x,2.0,0); human.add(ear);
+});
+let legL=new THREE.Mesh(new THREE.BoxGeometry(0.3,0.6,0.3), new THREE.MeshLambertMaterial({color:0x111111}));
+legL.position.set(-0.2,0.3,0); human.add(legL);
+let legR=legL.clone(); legR.position.x=0.2; human.add(legR);
+let armL=new THREE.Mesh(new THREE.BoxGeometry(0.22,0.8,0.22), new THREE.MeshLambertMaterial({color:0x2196f3}));
+armL.position.set(-0.55,1.1,0); human.add(armL);
+let armR=armL.clone(); armR.position.x=0.55; human.add(armR);
+scene.add(human); human.visible=false; human.position.set(0,0,35);
+let speed=0, angle=0, inCar=true, steerAngle=0;
+let keys={}; let touch={gas:false,brake:false,left:false,right:false};
+addEventListener('keydown',e=>keys[e.key]=true);
+addEventListener('keyup',e=>keys[e.key]=false);
+function bind(id,prop){
+  let el=document.getElementById(id);
+  el.addEventListener('touchstart',e=>{e.preventDefault(); touch[prop]=true;});
+  el.addEventListener('touchend',()=>touch[prop]=false);
+  el.addEventListener('mousedown',()=>touch[prop]=true);
+  el.addEventListener('mouseup',()=>touch[prop]=false);
+}
+bind('gas','gas'); bind('brake','brake'); bind('leftBtn','left'); bind('rightBtn','right');
+let joyX=0, joyY=0, joyActive=false, joyStartX=0, joyStartY=0, joyId=null;
+let camId=null, camLastX=0, isRunning=false;
+let joyBase=document.getElementById('joyBase'), joyKnob=document.getElementById('joyKnob');
+let camAngle=0;
+document.addEventListener('touchstart',e=>{
+  for(let t of e.changedTouches){
+    if(joyId===null && !inCar && t.clientX < innerWidth*0.55 && t.target.id!=='exitBtn' && t.target.id!=='runBtn'){
+      joyId=t.identifier; joyActive=true; joyStartX=t.clientX; joyStartY=t.clientY;
+      joyBase.style.display='block';
+      joyBase.style.left=(joyStartX-65)+'px'; joyBase.style.top=(joyStartY-65)+'px';
+      joyKnob.style.left='40px'; joyKnob.style.top='40px';
+      joyX=0; joyY=0;
+    } else if(camId===null && t.clientX >= innerWidth*0.55 && t.target.id!=='exitBtn' && t.target.id!=='runBtn' && t.target.id!=='gas' && t.target.id!=='brake' && t.target.id!=='leftBtn' && t.target.id!=='rightBtn'){
+      camId=t.identifier; camLastX=t.clientX;
+    }
+  }
+},{passive:true});
+document.addEventListener('touchmove',e=>{
+  for(let t of e.changedTouches){
+    if(t.identifier===joyId && joyActive){
+      e.preventDefault();
+      let dx=t.clientX-joyStartX, dy=t.clientY-joyStartY;
+      let dist=Math.sqrt(dx*dx+dy*dy); let max=40;
+      if(dist>max){ dx=dx/dist*max; dy=dy/dist*max; }
+      joyKnob.style.left=(40+dx)+'px'; joyKnob.style.top=(40+dy)+'px';
+      joyX=dx/max; joyY=dy/max;
+    }
+    if(t.identifier===camId){
+      e.preventDefault();
+      let dx=t.clientX-camLastX;
+      camAngle -= dx*0.005;
+      camLastX=t.clientX;
+    }
+  }
+},{passive:false});
+document.addEventListener('touchend',e=>{
+  for(let t of e.changedTouches){
+    if(t.identifier===joyId){ joyId=null; joyActive=false; joyX=0; joyY=0; joyBase.style.display='none'; }
+    if(t.identifier===camId){ camId=null; }
+  }
+});
+document.addEventListener('touchcancel',e=>{
+  for(let t of e.changedTouches){
+    if(t.identifier===joyId){ joyId=null; joyActive=false; joyX=0; joyY=0; joyBase.style.display='none'; }
+    if(t.identifier===camId){ camId=null; }
+  }
+});
+let mouseCam=false, mouseLastX=0;
+addEventListener('mousedown',e=>{
+  if(!inCar && e.clientX>=innerWidth*0.55){ mouseCam=true; mouseLastX=e.clientX; }
+  else if(!inCar && e.clientX<innerWidth*0.55){ joyActive=true; joyId='mouse'; joyStartX=e.clientX; joyStartY=e.clientY; joyBase.style.display='block'; joyBase.style.left=(joyStartX-65)+'px'; joyBase.style.top=(joyStartY-65)+'px'; }
+});
+addEventListener('mousemove',e=>{
+  if(joyActive && joyId==='mouse'){
+    let dx=e.clientX-joyStartX, dy=e.clientY-joyStartY;
+    let dist=Math.sqrt(dx*dx+dy*dy); let max=40;
+    if(dist>max){ dx=dx/dist*max; dy=dy/dist*max; }
+    joyKnob.style.left=(40+dx)+'px'; joyKnob.style.top=(40+dy)+'px';
+    joyX=dx/max; joyY=dy/max;
+  }
+  if(mouseCam){ camAngle -= (e.clientX-mouseLastX)*0.005; mouseLastX=e.clientX; }
+});
+addEventListener('mouseup',()=>{ joyActive=false; joyId=null; joyX=0; joyY=0; joyBase.style.display='none'; mouseCam=false; });
+document.getElementById('runBtn').addEventListener('touchstart',e=>{e.preventDefault(); isRunning=true;});
+document.getElementById('runBtn').addEventListener('touchend',()=>isRunning=false);
+document.getElementById('runBtn').addEventListener('mousedown',()=>isRunning=true);
+document.getElementById('runBtn').addEventListener('mouseup',()=>isRunning=false);
+function isColliding(x,z,radius){
+  for(let b of buildings){ if(Math.abs(x-b.x)<b.half+radius && Math.abs(z-b.z)<b.half+radius) return true; }
+  for(let t of trees){
+    let dx=x-t.x, dz=z-t.z;
+    if(Math.sqrt(dx*dx+dz*dz) < t.r + radius) return true;
+  }
+  return false;
+}
+document.getElementById('exitBtn').addEventListener('click', ()=>{
+  if(inCar){
+    inCar=false; speed=0; human.visible=true;
+    human.position.set(car.position.x+3,0,car.position.z+3);
+    camAngle=angle;
+    document.getElementById('exitBtn').innerText='🚗 ركوب';
+    document.getElementById('carControls').style.display='none';
+    document.getElementById('runBtn').style.display='block';
+  } else {
+    let dx=human.position.x-car.position.x, dz=human.position.z-car.position.z;
+    if(Math.sqrt(dx*dx+dz*dz)<5){
+      inCar=true; human.visible=false; angle=camAngle;
+      document.getElementById('exitBtn').innerText='🚶 خروج';
+      document.getElementById('carControls').style.display='flex';
+      document.getElementById('runBtn').style.display='none';
+    } else {
+      showToast('قرب من السيارة عشان تركب!');
+    }
+  }
+});
+function animate(){
+  requestAnimationFrame(animate);
+  let gas=keys['ArrowUp']||keys['w']||touch.gas;
+  let brake=keys['ArrowDown']||keys['s']||touch.brake;
+  let left=keys['ArrowLeft']||keys['a']||touch.left;
+  let right=keys['ArrowRight']||keys['d']||touch.right;
+  if(inCar){
+    let kmh=speed*3.6;
+    if(gas){
+      let accel = 5.5 * (1 - (Math.abs(kmh)/200));
+      if(accel<0.5) accel=0.5;
+      speed += accel*0.016;
+      brakeMat.color.set(0x1a1a1a);
+    } else if(brake){
+      if(speed > 0.5){ speed -= 12*0.016; brakeMat.color.set(0xff0000); }
+      else { speed -= 4*0.016; brakeMat.color.set(0xffffff); }
+    } else {
+      speed -= speed*0.004;
+      if(Math.abs(speed)<0.05) speed=0;
+      if(speed < -0.1) brakeMat.color.set(0xffffff);
+      else brakeMat.color.set(0x1a1a1a);
+    }
+    if(speed>45) speed=45;
+    if(speed<-6) speed=-6;
+    let targetSteer=0;
+    if(left) targetSteer=1;
+    if(right) targetSteer=-1;
+    steerAngle += (targetSteer - steerAngle)*0.12;
+    let steerPower = 0.028 * (1.6/(1+Math.abs(kmh)/45));
+    angle += steerAngle * steerPower * (speed>0?1:-1) * (Math.abs(speed)>0.1?1:0);
+    car.rotation.y=angle;
+    let nx=car.position.x+Math.sin(angle)*speed*0.016*3.5;
+    let nz=car.position.z+Math.cos(angle)*speed*0.016*3.5;
+    if(!isColliding(nx,nz,1.5)){ car.position.x=nx; car.position.z=nz; } else {
+      speed = -speed*0.25;
+      showToast('اصطدمت!');
+    }
+    if(car.position.x>390) car.position.x=390; if(car.position.x<-390) car.position.x=-390;
+    if(car.position.z>390) car.position.z=390; if(car.position.z<-390) car.position.z=-390;
+    let targetTiltZ = -steerAngle * Math.min(Math.abs(kmh)/100,1) * 0.08;
+    let targetTiltX = gas ? -0.02 : (brake && speed>0 ? 0.03 : 0);
+    car.rotation.z += (targetTiltZ - car.rotation.z)*0.1;
+    car.rotation.x += (targetTiltX - car.rotation.x)*0.1;
+    let sf=Math.abs(kmh)/150;
+    camera.fov+=((62+sf*18)-camera.fov)*0.08; camera.updateProjectionMatrix();
+    camera.position.lerp(new THREE.Vector3(car.position.x-Math.sin(angle)*(9+sf*5), 5+sf*1.5, car.position.z-Math.cos(angle)*(9+sf*5)),0.12);
+    camera.lookAt(car.position.x,1,car.position.z);
+    document.getElementById('speed').innerText=Math.round(Math.abs(kmh));
+  } else {
+    if(keys['ArrowUp']||keys['w']) joyY=-1; else if(keys['ArrowDown']||keys['s']) joyY=1; else if(!joyActive) joyY=0;
+    if(keys['ArrowLeft']||keys['a']) joyX=-1; else if(keys['ArrowRight']||keys['d']) joyX=1; else if(!joyActive) joyX=0;
+    if(keys['ArrowLeft']||keys['q']) camAngle+=0.03;
+    if(keys['ArrowRight']||keys['e']) camAngle-=0.03;
+    let moveSpeed = isRunning ? 12 : 6;
+    if(Math.abs(joyX)>0.08 || Math.abs(joyY)>0.08){
+      let forwardX = Math.sin(camAngle);
+      let forwardZ = Math.cos(camAngle);
+      let rightX = Math.cos(camAngle);
+      let rightZ = -Math.sin(camAngle);
+      let moveX = forwardX * (-joyY) - rightX * joyX;
+      let moveZ = forwardZ * (-joyY) - rightZ * joyX;
+      let len = Math.sqrt(moveX*moveX+moveZ*moveZ);
+      if(len>0){ moveX/=len; moveZ/=len; }
+      human.rotation.y = Math.atan2(moveX, moveZ);
+      let nx=human.position.x+moveX*moveSpeed*0.016*3;
+      let nz=human.position.z+moveZ*moveSpeed*0.016*3;
+      if(!isColliding(nx,nz,0.8)){ human.position.x=nx; human.position.z=nz; }
+      let walk=Math.sin(Date.now()*(isRunning?0.035:0.025))*0.6;
+      legL.rotation.x=walk; legR.rotation.x=-walk; armL.rotation.x=-walk; armR.rotation.x=walk;
+    } else { legL.rotation.x*=0.8; legR.rotation.x*=0.8; }
+    camera.position.lerp(new THREE.Vector3(human.position.x-Math.sin(camAngle)*7, 4.5, human.position.z-Math.cos(camAngle)*7),0.25);
+    camera.lookAt(human.position.x,1.5,human.position.z);
+    document.getElementById('speed').innerText=Math.round(moveSpeed*(Math.abs(joyX)>0.08||Math.abs(joyY)>0.08?1:0)*3.6);
+  }
+  renderer.render(scene,camera);
+}
+animate();
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight);});
+</script>
+</body>
+</html>at.color.set(0x1a1a1a);
+    }
+    if(speed>45) speed=45;
+    if(speed<-6) speed=-6;
+    let targetSteer=0;
+    if(left) targetSteer=1;
+    if(right) targetSteer=-1;
+    steerAngle += (targetSteer - steerAngle)*0.12;
+    let steerPower = 0.028 * (1.6/(1+Math.abs(kmh)/45));
+    angle += steerAngle * steerPower * (speed>0?1:-1) * (Math.abs(speed)>0.1?1:0);
+    car.rotation.y=angle;
+    let nx=car.position.x+Math.sin(angle)*speed*0.016*3.5;
+    let nz=car.position.z+Math.cos(angle)*speed*0.016*3.5;
+    if(!isColliding(nx,nz,1.5)){ car.position.x=nx; car.position.z=nz; } else {
+      speed = -speed*0.25;
+      showToast('اصطدمت!');
+    }
+    if(car.position.x>390) car.position.x=390; if(car.position.x<-390) car.position.x=-390;
+    if(car.position.z>390) car.position.z=390; if(car.position.z<-390) car.position.z=-390;
+    let targetTiltZ = -steerAngle * Math.min(Math.abs(kmh)/100,1) * 0.08;
+    let targetTiltX = gas ? -0.02 : (brake && speed>0 ? 0.03 : 0);
+    car.rotation.z += (targetTiltZ - car.rotation.z)*0.1;
+    car.rotation.x += (targetTiltX - car.rotation.x)*0.1;
+    // الكفرات تدور وتلف مع الدركسون
+    wheels.forEach((w,i)=>{
+      w.rotation.y = i<2 ? steerAngle*0.4 : 0;
+      w.children.forEach(c=>{ c.rotation.x += speed*0.15; });
+    });
+    let sf=Math.abs(kmh)/150;
+    camera.fov+=((62+sf*18)-camera.fov)*0.08; camera.updateProjectionMatrix();
+    camera.position.lerp(new THREE.Vector3(car.position.x-Math.sin(angle)*(9+sf*5), 5+sf*1.5, car.position.z-Math.cos(angle)*(9+sf*5)),0.12);
+    camera.lookAt(car.position.x,1,car.position.z);
+    document.getElementById('speed').innerText=Math.round(Math.abs(kmh));
+  } else {
+    if(keys['ArrowUp']||keys['w']) joyY=-1; else if(keys['ArrowDown']||keys['s']) joyY=1; else if(!joyActive) joyY=0;
+    if(keys['ArrowLeft']||keys['a']) joyX=-1; else if(keys['ArrowRight']||keys['d']) joyX=1; else if(!joyActive) joyX=0;
+    if(keys['ArrowLeft']||keys['q']) camAngle+=0.03;
+    if(keys['ArrowRight']||keys['e']) camAngle-=0.03;
+    let moveSpeed = isRunning ? 12 : 6;
+    if(Math.abs(joyX)>0.08 || Math.abs(joyY)>0.08){
+      let forwardX = Math.sin(camAngle);
+      let forwardZ = Math.cos(camAngle);
+      let rightX = Math.cos(camAngle);
+      let rightZ = -Math.sin(camAngle);
+      let moveX = forwardX * (-joyY) - rightX * joyX;
+      let moveZ = forwardZ * (-joyY) - rightZ * joyX;
+      let len = Math.sqrt(moveX*moveX+moveZ*moveZ);
+      if(len>0){ moveX/=len; moveZ/=len; }
+      human.rotation.y = Math.atan2(moveX, moveZ);
+      let nx=human.position.x+moveX*moveSpeed*0.016*3;
+      let nz=human.position.z+moveZ*moveSpeed*0.016*3;
+      if(!isColliding(nx,nz,0.8)){ human.position.x=nx; human.position.z=nz; }
+      let walk=Math.sin(Date.now()*(isRunning?0.035:0.025))*0.6;
+      legL.rotation.x=walk; legR.rotation.x=-walk; armL.rotation.x=-walk; armR.rotation.x=walk;
+    } else { legL.rotation.x*=0.8; legR.rotation.x*=0.8; }
+    camera.position.lerp(new THREE.Vector3(human.position.x-Math.sin(camAngle)*7, 4.5, human.position.z-Math.cos(camAngle)*7),0.25);
+    camera.lookAt(human.position.x,1.5,human.position.z);
+    document.getElementById('speed').innerText=Math.round(moveSpeed*(Math.abs(joyX)>0.08||Math.abs(joyY)>0.08?1:0)*3.6);
+  }
+  renderer.render(scene,camera);
+}
+animate();
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight);});
+</script>
+</body>
+<style>html{
+ color:darkviolet;
+ font-size:25px;
+ font-weight:600;
+}
+</style><script>/*Here write your javascript code*/</script></html>
